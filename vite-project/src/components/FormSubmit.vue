@@ -117,7 +117,6 @@ async function submitForm() {
                     </div>
                 </form>
 
-                <p class="note">หมายเหตุ: ระบบจะแสดง modal เมื่อเริ่มส่งคำขอ</p>
             </div>
         </main>
 
