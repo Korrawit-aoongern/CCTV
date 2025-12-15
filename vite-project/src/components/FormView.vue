@@ -21,16 +21,16 @@ async function fetchItems() {
     }
 }
 
-async function removeItem(id) {
-    if (!confirm('ลบรายการนี้หรือไม่?')) return
-    try {
-        const res = await fetch(`http://localhost:3000/api/requests/${id}`, { method: 'DELETE' })
-        if (!res.ok) throw new Error(`Delete failed ${res.status}`)
-        await fetchItems()
-    } catch (err) {
-        alert('ไม่สามารถลบข้อมูล: ' + err.message)
-    }
-}
+// async function removeItem(id) {
+//     if (!confirm('ลบรายการนี้หรือไม่?')) return
+//     try {
+//         const res = await fetch(`http://localhost:3000/api/requests/${id}`, { method: 'DELETE' })
+//         if (!res.ok) throw new Error(`Delete failed ${res.status}`)
+//         await fetchItems()
+//     } catch (err) {
+//         alert('ไม่สามารถลบข้อมูล: ' + err.message)
+//     }
+// }
 
 function openEdit(item) {
     editItem.data = { ...item }
@@ -57,92 +57,150 @@ onMounted(() => fetchItems())
 </script>
 
 <template>
-        <div class="form-view">
-                <h2>ดูแบบฟอร์ม</h2>
+    <div class="form-view">
+        <h2>ดูแบบฟอร์ม</h2>
 
-                <div v-if="loading">กำลังโหลด...</div>
-                <div v-if="error" class="error">เกิดข้อผิดพลาด: {{ error }}</div>
+        <div v-if="loading">กำลังโหลด...</div>
+        <div v-if="error" class="error">เกิดข้อผิดพลาด: {{ error }}</div>
 
-                <table v-if="items.length" class="list-table">
-                        <thead>
-                                <tr>
-                                        <th>ID</th>
-                                        <th>ประเภท</th>
-                                        <th>ลูกค้า</th>
-                                        <th>เบอร์ติดต่อ</th>
-                                        <th>อุปกรณ์</th>
-                                        <th>วันที่</th>
-                                        <th>การกระทำ</th>
-                                </tr>
-                        </thead>
-                        <tbody>
-                                <tr v-for="it in items" :key="it.id">
-                                        <td>{{ it.id }}</td>
-                                        <td>{{ it.serviceType }}</td>
-                                        <td>{{ it.customerName }}</td>
-                                        <td>{{ it.contactPhone }}</td>
-                                        <td>{{ it.deviceModel }}</td>
-                                        <td>{{ new Date(it.created_at).toLocaleString() }}</td>
-                                        <td>
-                                                <button @click="openEdit(it)">แก้ไข</button>
-                                                <button @click="removeItem(it.id)">ลบ</button>
-                                        </td>
-                                </tr>
-                        </tbody>
-                </table>
+        <table v-if="items.length" class="list-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>ประเภท</th>
+                    <th>ลูกค้า</th>
+                    <th>เบอร์ติดต่อ</th>
+                    <th>อุปกรณ์</th>
+                    <th>สถานะ</th>
+                    <th>วันที่</th>
+                    <th>การกระทำ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="it in items" :key="it.id">
+                    <td>{{ it.id }}</td>
+                    <td>{{ it.serviceType }}</td>
+                    <td>{{ it.customerName }}</td>
+                    <td>{{ it.contactPhone }}</td>
+                    <td>{{ it.deviceModel }}</td>
+                    <td>{{ it.status }}</td>
+                    <td>{{ new Date(it.created_at).toLocaleString() }}</td>
+                    <td>
+                        <button @click="openEdit(it)">แก้ไข</button>
+                        <!-- <button @click="removeItem(it.id)">ลบ</button> -->
+                    </td>
+                </tr>
+            </tbody>
+        </table>
 
-                <div v-if="!items.length && !loading">ยังไม่มีรายการ</div>
+        <div v-if="!items.length && !loading">ยังไม่มีรายการ</div>
 
-                <!-- Edit Modal -->
-                <div class="modal-backdrop" v-if="editItem.visible">
-                        <div class="modal">
-                                <h3>แก้ไขรายการ {{ editItem.data.id }}</h3>
+        <!-- Edit Modal -->
+        <div class="modal-backdrop" v-if="editItem.visible">
+            <div class="modal">
+                <h3>แก้ไขรายการ {{ editItem.data.id }}</h3>
 
-                                <div class="form-group">
-                                        <label>ประเภท</label>
-                                        <select v-model="editItem.data.serviceType">
-                                                <option value="phoneRepair">ซ่อมโทรศัพท์มือถือ</option>
-                                                <option value="cameraInstall">ติดตั้งกล้องรักษาความปลอดภัย</option>
-                                        </select>
-                                </div>
-
-                                <div class="form-group">
-                                        <label>ชื่อ</label>
-                                        <input v-model="editItem.data.customerName" />
-                                </div>
-
-                                <div class="form-group">
-                                        <label>เบอร์โทร</label>
-                                        <input v-model="editItem.data.contactPhone" />
-                                </div>
-
-                                <div class="form-group">
-                                        <label>รุ่น</label>
-                                        <input v-model="editItem.data.deviceModel" />
-                                </div>
-
-                                <div class="form-group">
-                                        <label>รายละเอียด</label>
-                                        <textarea v-model="editItem.data.problemDescription" rows="4"></textarea>
-                                </div>
-
-                                <div class="modal-actions">
-                                        <button @click="saveEdit">บันทึก</button>
-                                        <button @click="() => (editItem.visible = false)">ยกเลิก</button>
-                                </div>
-                        </div>
+                <div class="form-group">
+                    <label>ประเภท</label>
+                    <select v-model="editItem.data.serviceType">
+                        <option value="phoneRepair">ซ่อมโทรศัพท์มือถือ</option>
+                        <option value="cameraInstall">ติดตั้งกล้องรักษาความปลอดภัย</option>
+                    </select>
                 </div>
+
+                <div class="form-group">
+                    <label>ชื่อ</label>
+                    <input v-model="editItem.data.customerName" />
+                </div>
+
+                <div class="form-group">
+                    <label>เบอร์โทร</label>
+                    <input v-model="editItem.data.contactPhone" />
+                </div>
+
+                <div class="form-group">
+                    <label>รุ่น</label>
+                    <input v-model="editItem.data.deviceModel" />
+                </div>
+
+                <div class="form-group">
+                    <label>รายละเอียด</label>
+                    <textarea v-model="editItem.data.problemDescription" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>สถานะ</label>
+                    <select v-model="editItem.data.status">
+                        <option value="กำลังส่งซ่อม">กำลังส่งซ่อม</option>
+                        <option value="สำเร็จ">สำเร็จ</option>
+                        <option value="ถูกยกเลิก">ถูกยกเลิก</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button @click="saveEdit">บันทึก</button>
+                    <button @click="() => (editItem.visible = false)">ยกเลิก</button>
+                </div>
+            </div>
         </div>
+    </div>
 </template>
 
 <style scoped>
-.form-view{max-width:1000px;margin:20px auto}
-.list-table{width:100%;border-collapse:collapse}
-.list-table th,.list-table td{border:1px solid #e6eef8;padding:8px;text-align:left}
-.list-table th{background:#f5f9ff}
-.modal-backdrop{position:fixed;inset:0;background:rgba(6,18,30,0.45);display:flex;align-items:center;justify-content:center}
-.modal{background:white;padding:18px;border-radius:10px;max-width:680px;width:100%}
-.modal .form-group{margin-bottom:10px}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-button{background:#2b6cb0;color:#fff;border:none;padding:6px 10px;border-radius:6px}
+.form-view {
+    max-width: 1000px;
+    margin: 20px auto
+}
+
+.list-table {
+    width: 100%;
+    border-collapse: collapse
+}
+
+.list-table th,
+.list-table td {
+    border: 1px solid #e6eef8;
+    padding: 8px;
+    text-align: left
+}
+
+.list-table th {
+    background: #f5f9ff
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 18, 30, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+.modal {
+    background: white;
+    padding: 18px;
+    border-radius: 10px;
+    max-width: 680px;
+    width: 100%
+}
+
+.modal .form-group {
+    margin-bottom: 10px
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px
+}
+
+button {
+    background: #2b6cb0;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px
+}
 </style>

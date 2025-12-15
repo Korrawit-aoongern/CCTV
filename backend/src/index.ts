@@ -36,6 +36,7 @@ async function initDb() {
       contactPhone VARCHAR(50),
       deviceModel VARCHAR(255),
       problemDescription TEXT,
+      status VARCHAR(50) DEFAULT 'กำลังส่งซ่อม',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -73,11 +74,20 @@ app.get('/api/requests/:id', async (c) => {
 app.post('/api/requests', async (c) => {
   try {
     const body = await c.req.json()
-    const { serviceType, customerName, contactPhone, deviceModel, problemDescription } = body
-    const [res] = await pool.query(
-      'INSERT INTO requests (serviceType, customerName, contactPhone, deviceModel, problemDescription) VALUES (?, ?, ?, ?, ?)',
-      [serviceType, customerName, contactPhone, deviceModel, problemDescription]
-    ) as any
+    const { serviceType, customerName, contactPhone, deviceModel, problemDescription, status } = body
+    let res: any
+    if (typeof status === 'undefined') {
+      // omit status column so DB default is applied
+      ;[res] = await pool.query(
+        'INSERT INTO requests (serviceType, customerName, contactPhone, deviceModel, problemDescription) VALUES (?, ?, ?, ?, ?)',
+        [serviceType, customerName, contactPhone, deviceModel, problemDescription]
+      ) as any
+    } else {
+      ;[res] = await pool.query(
+        'INSERT INTO requests (serviceType, customerName, contactPhone, deviceModel, problemDescription, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [serviceType, customerName, contactPhone, deviceModel, problemDescription, status]
+      ) as any
+    }
     const insertId = res.insertId
     return c.json({ id: insertId, message: 'created' }, 201)
   } catch (err: any) {
@@ -91,11 +101,24 @@ app.put('/api/requests/:id', async (c) => {
   try {
     const id = Number(c.req.param('id'))
     const body = await c.req.json()
-    const { serviceType, customerName, contactPhone, deviceModel, problemDescription } = body
-    await pool.query(
-      'UPDATE requests SET serviceType=?, customerName=?, contactPhone=?, deviceModel=?, problemDescription=? WHERE id=?',
-      [serviceType, customerName, contactPhone, deviceModel, problemDescription, id]
-    )
+    const { serviceType, customerName, contactPhone, deviceModel, problemDescription, status } = body
+    // build dynamic update to avoid overwriting fields with null when not provided
+    const sets: string[] = []
+    const params: any[] = []
+    if (typeof serviceType !== 'undefined') { sets.push('serviceType=?'); params.push(serviceType) }
+    if (typeof customerName !== 'undefined') { sets.push('customerName=?'); params.push(customerName) }
+    if (typeof contactPhone !== 'undefined') { sets.push('contactPhone=?'); params.push(contactPhone) }
+    if (typeof deviceModel !== 'undefined') { sets.push('deviceModel=?'); params.push(deviceModel) }
+    if (typeof problemDescription !== 'undefined') { sets.push('problemDescription=?'); params.push(problemDescription) }
+    if (typeof status !== 'undefined') { sets.push('status=?'); params.push(status) }
+
+    if (sets.length === 0) {
+      return c.json({ id, message: 'no changes' })
+    }
+
+    params.push(id)
+    const sql = `UPDATE requests SET ${sets.join(', ')} WHERE id=?`
+    await pool.query(sql, params)
     return c.json({ id, message: 'updated' })
   } catch (err: any) {
     console.error(err)
