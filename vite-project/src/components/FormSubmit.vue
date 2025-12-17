@@ -245,7 +245,7 @@ body {
 }
 
 button {
-    background: rgb(116, 176, 211);
+    background: #0b63b8;
     border: none;
     padding: 10px 16px;
     border-radius: 10px;
