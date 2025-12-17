@@ -1,251 +1,82 @@
 <script setup>
-import { reactive, ref } from 'vue'
-
-const form = reactive({
-  serviceType: '',
-  customerName: '',
-  contactPhone: '',
-  deviceModel: '',
-  problemDescription: ''
-})
-
-const sending = ref(false)
-
-const modal = reactive({
-  visible: false,
-  title: 'สถานะ',
-  message: '',
-  loading: false
-})
-
-function openModal(title, message, loading = false) {
-  modal.title = title
-  modal.message = message
-  modal.loading = loading
-  modal.visible = true
-}
-
-function closeModal() {
-  modal.visible = false
-}
-
-async function submitForm() {
-  if (!form.serviceType || !form.customerName || !form.contactPhone || !form.problemDescription) {
-    openModal('ข้อผิดพลาด', 'กรุณากรอกข้อมูลให้ครบถ้วน')
-    return
-  }
-
-  sending.value = true
-  openModal('กำลังส่งคำขอ', 'กำลังส่งซ่อม... กรุณารอสักครู่', true)
-
-  try {
-    const res = await fetch('http://localhost:3000/api/requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    })
-
-    if (!res.ok) throw new Error(`Server error ${res.status}`)
-
-    const data = await res.json()
-
-    modal.loading = false
-    modal.title = 'ส่งสำเร็จ'
-    modal.message = data.message || 'แบบฟอร์มถูกส่งเรียบร้อยแล้ว'
-
-    // clear form
-    form.serviceType = ''
-    form.customerName = ''
-    form.contactPhone = ''
-    form.deviceModel = ''
-    form.problemDescription = ''
-  } catch (err) {
-    modal.loading = false
-    modal.title = 'เกิดข้อผิดพลาด'
-    modal.message = err.message || 'ไม่สามารถส่งคำขอได้'
-  } finally {
-    sending.value = false
-  }
-}
+// Root layout: the pages are rendered via router-view.
 </script>
 
 <template>
+  <div id="app-root" class="root-layout">
+    <aside class="sidebar">
+      <div class="brand">ศูนย์บริการ</div>
+      <nav class="nav">
+        <router-link to="/" class="nav-item" active-class="active" exact
+          >ส่งแบบฟอร์ม</router-link
+        >
+        <router-link to="/form-view" class="nav-item" active-class="active"
+          >ดูแบบฟอร์ม</router-link
+        >
+      </nav>
+    </aside>
 
-
-  <div id="app">
-    <header class="site-header">
-      <h1>ศูนย์บริการซ่อมมือถือและติดตั้งกล้อง</h1>
-      <p>แจ้งซ่อมโทรศัพท์มือถือ หรือนัดหมายติดตั้งกล้องรักษาความปลอดภัย</p>
-    </header>
-
-    <main>
-      <div class="form-container">
-        <h2>แบบฟอร์มแจ้งซ่อม / บริการ</h2>
-
-        <form @submit.prevent="submitForm" novalidate>
-          <div class="form-group">
-            <label for="serviceType">เลือกประเภทบริการ:</label>
-            <select id="serviceType" v-model="form.serviceType" required>
-              <option value="">-- กรุณาเลือก --</option>
-              <option value="phoneRepair">ซ่อมโทรศัพท์มือถือ</option>
-              <option value="cameraInstall">ติดตั้งกล้องรักษาความปลอดภัย</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="customerName">ชื่อ-นามสกุล:</label>
-            <input id="customerName" v-model="form.customerName" type="text" required />
-          </div>
-
-          <div class="form-group">
-            <label for="contactPhone">เบอร์โทรศัพท์ติดต่อ:</label>
-            <input id="contactPhone" v-model="form.contactPhone" type="tel" pattern="[0-9]{9,10}" required />
-          </div>
-
-          <div class="form-group">
-            <label for="deviceModel">รุ่นโทรศัพท์/อุปกรณ์:</label>
-            <input id="deviceModel" v-model="form.deviceModel" type="text" />
-          </div>
-
-          <div class="form-group">
-            <label for="problemDescription">รายละเอียดอาการ/ความต้องการ:</label>
-            <textarea id="problemDescription" v-model="form.problemDescription" rows="5" required></textarea>
-          </div>
-
-          <div class="actions">
-            <button type="submit" :disabled="sending">ส่งคำขอรับบริการ</button>
-          </div>
-        </form>
-
-        <p class="note">หมายเหตุ: ระบบจะแสดง modal เมื่อเริ่มส่งคำขอ</p>
-      </div>
+    <main class="content">
+      <router-view />
     </main>
-
-    <footer class="site-footer">
-      <p>&copy; 2025 Tech Service Management</p>
-    </footer>
-
-    <!-- Modal -->
-    <div class="modal-backdrop" v-if="modal.visible">
-      <div class="modal" :class="{loading: modal.loading}">
-        <h3>{{ modal.title }}</h3>
-        <p>{{ modal.message }}</p>
-        <div class="spinner" v-if="modal.loading" aria-hidden="true"></div>
-        <div class="modal-actions" v-if="!modal.loading">
-          <button @click="closeModal">ปิด</button>
-        </div>
-      </div>
-    </div>
-    <!-- Floating submit button -->
-    <button class="fab-submit" @click="submitForm" :disabled="sending" aria-label="ส่งคำขอ">
-      ส่ง
-    </button>
   </div>
-
 </template>
 
+<style>
+  body {
+    margin: 0
+  }
+</style>
+
 <style scoped>
-:root{
-  --accent:#1976d2;
-  --accent-2:#0b63b8;
-  --bg:#eef5fb;
-  --card:#ffffff;
-  --muted:#6b7b8a;
+.root-layout {
+  display: flex;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eef5fb, #f9fbff);
+}
+.sidebar {
+  width: 220px;
+  background: #0b63b8;
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nav-item {
+  color: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+.content {
+  flex: 1;
+  padding: 28px;
 }
 
-*{box-sizing:border-box}
-body{
-  font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans Thai', Arial;
-  line-height:1.45;
-  margin:0;
-  background:linear-gradient(180deg,var(--bg),#f9fbff);
-  color:#16202a;
-  -webkit-font-smoothing:antialiased;
-}
-
-.site-header{
-  background:linear-gradient(90deg,var(--accent),var(--accent-2));
-  color:#fff;
-  padding:32px 18px;
-  text-align:center;
-  box-shadow:0 6px 18px rgba(11,99,184,0.12);
-}
-.site-header h1{margin:0 0 6px;font-size:24px;font-weight:700}
-.site-header p{margin:0;color:rgba(255,255,255,0.92)}
-
-.form-container{
-  max-width:820px;
-  margin:32px auto;
-  padding:28px;
-  background:var(--card);
-  border-radius:12px;
-  box-shadow:0 12px 40px rgba(16,32,64,0.07);
-  border:1px solid rgba(15,35,60,0.03);
-}
-.form-container h2{margin-top:0;font-size:20px}
-
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-group{display:flex;flex-direction:column;margin-bottom:14px}
-.form-group label{font-weight:600;margin-bottom:8px;color:#163247}
-.form-group input,.form-group select,.form-group textarea{
-  padding:12px 14px;
-  border:1px solid #e3edf8;
-  border-radius:10px;
-  font-size:15px;
-  background:linear-gradient(180deg,#fff,#fbfdff);
-  transition:box-shadow .15s ease, border-color .15s ease, transform .08s ease;
-}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
-  outline:none;
-  border-color:var(--accent);
-  box-shadow:0 6px 20px rgba(25,118,210,0.12);
-  transform:translateY(-1px);
-}
-.form-group textarea{min-height:120px;resize:vertical}
-
-.actions{display:flex;justify-content:flex-end}
-button{background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;box-shadow:0 6px 18px rgba(25,118,210,0.18);transition:transform .12s ease,box-shadow .12s ease}
-button:hover{transform:translateY(-2px)}
-button[disabled]{opacity:0.6;cursor:default;transform:none}
-
-.note{margin-top:12px;color:var(--muted);font-size:13px}
-.site-footer{text-align:center;padding:18px 0;color:var(--muted)}
-
-/* Modal */
-.modal-backdrop{position:fixed;inset:0;background:linear-gradient(rgba(6,18,30,0.45),rgba(6,18,30,0.45));display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
-.modal{
-  background:var(--card);
-  padding:26px 22px;
-  max-width:480px;
-  width:100%;
-  border-radius:14px;
-  box-shadow:0 20px 60px rgba(9,20,40,0.36);
-  text-align:center;
-  transform:translateY(-6px) scale(0.98);
-  opacity:0;
-  transition:transform .26s cubic-bezier(.2,.9,.3,1),opacity .22s ease;
-}
-.modal.loading{padding-bottom:34px}
-.modal-backdrop .modal{transform:translateY(0) scale(1);opacity:1}
-.modal h3{margin:0 0 8px;font-size:18px}
-.modal p{margin:0 0 14px;color:#283842}
-.modal-actions{display:flex;gap:8px;justify-content:center}
-.modal-actions button{background:#2b6cb0;padding:8px 12px;border-radius:8px}
-
-.spinner{width:44px;height:44px;margin:10px auto 14px;border-radius:50%;border:4px solid rgba(15,35,60,0.08);border-top-color:var(--accent);animation:spin 1s linear infinite}
-
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* Floating submit button */
-.fab-submit{position:fixed;bottom:22px;right:22px;background:linear-gradient(180deg,var(--accent),var(--accent-2));color:#fff;border:none;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 12px 36px rgba(11,99,184,0.18);cursor:pointer}
-.fab-submit[disabled]{opacity:0.6;cursor:default}
-
-@media (max-width:900px){
-  .form-grid{grid-template-columns:1fr}
-}
-
-@media (max-width:600px){
-  .form-container{margin:16px;padding:16px}
-  .site-header h1{font-size:20px}
+@media (max-width: 900px) {
+  .root-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+  }
+  .nav {
+    flex-direction: row;
+  }
 }
 </style>
