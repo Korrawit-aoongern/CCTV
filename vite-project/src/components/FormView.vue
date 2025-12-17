@@ -21,37 +21,7 @@ async function fetchItems() {
     }
 }
 
-// async function removeItem(id) {
-//     if (!confirm('ลบรายการนี้หรือไม่?')) return
-//     try {
-//         const res = await fetch(`http://localhost:3000/api/requests/${id}`, { method: 'DELETE' })
-//         if (!res.ok) throw new Error(`Delete failed ${res.status}`)
-//         await fetchItems()
-//     } catch (err) {
-//         alert('ไม่สามารถลบข้อมูล: ' + err.message)
-//     }
-// }
 
-function openEdit(item) {
-    editItem.data = { ...item }
-    editItem.visible = true
-}
-
-async function saveEdit() {
-    try {
-        const id = editItem.data.id
-        const res = await fetch(`http://localhost:3000/api/requests/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(editItem.data)
-        })
-        if (!res.ok) throw new Error(`Save failed ${res.status}`)
-        editItem.visible = false
-        await fetchItems()
-    } catch (err) {
-        alert('ไม่สามารถบันทึก: ' + err.message)
-    }
-}
 
 onMounted(() => fetchItems())
 </script>
@@ -73,7 +43,6 @@ onMounted(() => fetchItems())
                     <th>อุปกรณ์</th>
                     <th>สถานะ</th>
                     <th>วันที่</th>
-                    <th>การกระทำ</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,10 +54,6 @@ onMounted(() => fetchItems())
                     <td>{{ it.deviceModel }}</td>
                     <td>{{ it.status }}</td>
                     <td>{{ new Date(it.created_at).toLocaleString() }}</td>
-                    <td>
-                        <button @click="openEdit(it)">แก้ไข</button>
-                        <!-- <button @click="removeItem(it.id)">ลบ</button> -->
-                    </td>
                 </tr>
             </tbody>
         </table>
@@ -137,10 +102,6 @@ onMounted(() => fetchItems())
                     </select>
                 </div>
 
-                <div class="modal-actions">
-                    <button @click="saveEdit">บันทึก</button>
-                    <button @click="() => (editItem.visible = false)">ยกเลิก</button>
-                </div>
             </div>
         </div>
     </div>
