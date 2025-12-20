@@ -5,9 +5,18 @@ import { ref, reactive, onMounted } from 'vue'
 const items = ref([])
 const loading = ref(false)
 const error = ref(null)
+const users = ref([])
+const userFilter = ref('')
 
 // edit modal
 const editItem = reactive({ visible: false, data: null })
+
+function serviceTypeLabel(key) {
+    if (!key) return ''
+    if (key === 'phoneRepair') return 'ซ่อมโทรศัพท์มือถือ'
+    if (key === 'cameraInstall') return 'ติดตั้งกล้องรักษาความปลอดภัย'
+    return key
+}
 
 // simple auth state
 const auth = reactive({ username: '', password: '', authenticated: false })
@@ -29,7 +38,9 @@ async function fetchItems() {
     loading.value = true
     error.value = null
     try {
-        const res = await fetch('http://localhost:3000/api/requests')
+        let url = 'http://localhost:3000/api/admin/requests'
+        if (userFilter.value) url += `?uid=${userFilter.value}`
+        const res = await fetch(url, { headers: { 'x-admin': '1' } })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         items.value = await res.json()
     } catch (err) {
@@ -39,10 +50,20 @@ async function fetchItems() {
     }
 }
 
+async function fetchUsers() {
+    try {
+        const res = await fetch('http://localhost:3000/api/admin/users', { headers: { 'x-admin': '1' } })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        users.value = await res.json()
+    } catch (e) {
+        users.value = []
+    }
+}
+
 async function removeItem(id) {
     if (!confirm('ลบรายการนี้หรือไม่?')) return
     try {
-        const res = await fetch(`http://localhost:3000/api/requests/${id}`, { method: 'DELETE' })
+        const res = await fetch(`http://localhost:3000/api/admin/requests/${id}`, { method: 'DELETE', headers: { 'x-admin': '1' } })
         if (!res.ok) throw new Error(`Delete failed ${res.status}`)
         await fetchItems()
     } catch (err) {
@@ -58,9 +79,9 @@ function openEdit(item) {
 async function saveEdit() {
     try {
         const id = editItem.data.id
-        const res = await fetch(`http://localhost:3000/api/requests/${id}`, {
+        const res = await fetch(`http://localhost:3000/api/admin/requests/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-admin': '1' },
             body: JSON.stringify(editItem.data)
         })
         if (!res.ok) throw new Error(`Save failed ${res.status}`)
@@ -78,6 +99,7 @@ function login() {
         auth.authenticated = true
         saveSession()
         auth.password = ''
+        fetchUsers()
         fetchItems()
     } else {
         alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง')
@@ -92,6 +114,7 @@ function logout() {
 onMounted(() => {
     restoreSession()
     if (auth.authenticated) fetchItems()
+    if (auth.authenticated) fetchUsers()
 })
 </script>
 
@@ -122,37 +145,45 @@ onMounted(() => {
                 </div>
             </header>
             <h2>ดูแบบฟอร์ม</h2>
+            <div style="margin:12px 0">
+                <label>กรองตามผู้ใช้:</label>
+                <select v-model="userFilter" @change="fetchItems">
+                    <option value="">-- ทั้งหมด --</option>
+                    <option v-for="u in users" :key="u.id" :value="u.id">{{ u.firstname }} {{ u.lastname }} ({{ u.email }})</option>
+                </select>
+                <button @click="fetchItems" style="margin-left:8px">โหลด</button>
+            </div>
 
             <div v-if="loading">กำลังโหลด...</div>
             <div v-if="error" class="error">เกิดข้อผิดพลาด: {{ error }}</div>
 
             <table v-if="items.length" class="list-table">
                 <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>ประเภท</th>
-                        <th>ลูกค้า</th>
-                        <th>เบอร์ติดต่อ</th>
-                        <th>อุปกรณ์</th>
-                        <th>สถานะ</th>
-                        <th>วันที่</th>
-                        <th>การกระทำ</th>
-                    </tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>ประเภท</th>
+                            <th>ลูกค้า</th>
+                            <th>เบอร์ติดต่อ</th>
+                            <th>อุปกรณ์</th>
+                            <th>สถานะ</th>
+                            <th>วันที่</th>
+                            <th>การกระทำ</th>
+                        </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="it in items" :key="it.id">
-                        <td>{{ it.id }}</td>
-                        <td>{{ it.serviceType }}</td>
-                        <td>{{ it.customerName }}</td>
-                        <td>{{ it.contactPhone }}</td>
-                        <td>{{ it.deviceModel }}</td>
-                        <td>{{ it.status }}</td>
-                        <td>{{ new Date(it.created_at).toLocaleString() }}</td>
-                        <td>
-                            <button @click="openEdit(it)">แก้ไข</button>
-                            <button @click="removeItem(it.id)">ลบ</button>
-                        </td>
-                    </tr>
+                        <tr v-for="it in items" :key="it.id">
+                            <td>{{ it.id }}</td>
+                            <td>{{ serviceTypeLabel(it.serviceType) }}</td>
+                            <td>{{ it.customerName }}</td>
+                            <td>{{ it.contactPhone }}</td>
+                            <td>{{ it.deviceModel }}</td>
+                            <td>{{ it.status }}</td>
+                            <td>{{ new Date(it.created_at).toLocaleString() }}</td>
+                            <td>
+                                <button @click="openEdit(it)">แก้ไข</button>
+                                <button @click="removeItem(it.id)">ลบ</button>
+                            </td>
+                        </tr>
                 </tbody>
             </table>
 

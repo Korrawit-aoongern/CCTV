@@ -1,9 +1,11 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const form = reactive({
     serviceType: '',
-    customerName: '',
     contactPhone: '',
     deviceModel: '',
     problemDescription: ''
@@ -29,9 +31,77 @@ function closeModal() {
     modal.visible = false
 }
 
+function getUser() {
+    try {
+        return JSON.parse(localStorage.getItem('user') || 'null')
+    } catch {
+        return null
+    }
+}
+
+function logout() {
+    localStorage.removeItem('user')
+    router.push('/')
+}
+
+onMounted(() => {
+    const u = getUser()
+    if (!u) router.push('/')
+})
+
+const user = ref(null)
+onMounted(() => {
+    user.value = getUser()
+    // dynamic SSE handling
+    let es = null
+    function handleMessage(e) {
+        try {
+            const d = JSON.parse(e.data)
+            console.debug('SSE received', d)
+            if (d && d.uid && user.value && d.uid === user.value.id && d.status === 'สำเร็จ') {
+                if (Notification.permission === 'granted') {
+                    new Notification('คำขอเสร็จสิ้น', { body: `คำขอ No.${d.id} ถูกทำเครื่องหมายว่าสำเร็จ` })
+                }
+            }
+        } catch (err) { console.debug('SSE parse error', err) }
+    }
+    function startSSE() {
+        if (es) return
+        try {
+            if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+                Notification.requestPermission()
+            }
+            es = new EventSource('http://localhost:3000/api/updates')
+            es.onmessage = handleMessage
+            es.onerror = (ev) => console.debug('SSE error', ev)
+            console.debug('SSE started')
+        } catch (e) { console.debug('SSE start failed', e) }
+    }
+    function stopSSE() {
+        if (!es) return
+        try { es.close(); console.debug('SSE stopped') } catch (e) {}
+        es = null
+    }
+
+    // Start if enabled at mount
+    try { if (localStorage.getItem('sse_notify') === '1') startSSE() } catch (e) {}
+
+    // listen for toggle events
+    const toggleHandler = (ev) => { if (ev && ev.detail) startSSE(); else stopSSE() }
+    window.addEventListener('sse-toggle', toggleHandler)
+
+    onUnmounted(() => { stopSSE(); window.removeEventListener('sse-toggle', toggleHandler) })
+})
+
 async function submitForm() {
-    if (!form.serviceType || !form.customerName || !form.contactPhone || !form.problemDescription) {
+    if (!form.serviceType || !form.contactPhone || !form.problemDescription) {
         openModal('ข้อผิดพลาด', 'กรุณากรอกข้อมูลให้ครบถ้วน')
+        return
+    }
+
+    const user = getUser()
+    if (!user) {
+        openModal('ข้อผิดพลาด', 'ผู้ใช้ไม่ได้เข้าสู่ระบบ')
         return
     }
 
@@ -39,9 +109,14 @@ async function submitForm() {
     openModal('กำลังส่งคำขอ', 'กำลังส่งซ่อม... กรุณารอสักครู่', true)
 
     try {
+        // Validate Thai phone number (start with 0 and 10 digits)
+        const phone = (form.contactPhone || '').toString().trim()
+        if (!/^0\d{9}$/.test(phone)) {
+            throw new Error('กรุณากรอกหมายเลขโทรศัพท์ไทยให้ถูกต้อง (10 หลัก เริ่มต้นด้วย 0)')
+        }
         const res = await fetch('http://localhost:3000/api/requests', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-uid': String(user.id) },
             body: JSON.stringify(form)
         })
 
@@ -55,7 +130,6 @@ async function submitForm() {
 
         // clear form
         form.serviceType = ''
-        form.customerName = ''
         form.contactPhone = ''
         form.deviceModel = ''
         form.problemDescription = ''
@@ -71,10 +145,18 @@ async function submitForm() {
 
 <template>
     <div id="app">
-        <header class="site-header">
-            <h1>ศูนย์บริการซ่อมมือถือและติดตั้งกล้อง</h1>
-            <p>แจ้งซ่อมโทรศัพท์มือถือ หรือนัดหมายติดตั้งกล้องรักษาความปลอดภัย</p>
-        </header>
+                <header class="site-header">
+                        <div style="display:flex; justify-content:space-evenly; align-items:center">
+                            <div>
+                                <h1>ศูนย์บริการซ่อมมือถือและติดตั้งกล้อง</h1>
+                                <p>แจ้งซ่อมโทรศัพท์มือถือ หรือนัดหมายติดตั้งกล้องรักษาความปลอดภัย</p>
+                            </div>
+                            <div style="text-align:right;">
+                                    <div style="font-weight:700">{{ user && user.firstname ? user.firstname : '' }} {{ user && user.lastname ? user.lastname : '' }}</div>
+                                <button @click="logout" style="margin-top:6px; background:#b00020; padding:6px 10px; border-radius:8px">ออกจากระบบ</button>
+                            </div>
+                        </div>
+                </header>
 
         <main>
             <div class="form-container">
@@ -88,11 +170,6 @@ async function submitForm() {
                             <option value="phoneRepair">ซ่อมโทรศัพท์มือถือ</option>
                             <option value="cameraInstall">ติดตั้งกล้องรักษาความปลอดภัย</option>
                         </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="customerName">ชื่อ-นามสกุล:</label>
-                        <input id="customerName" v-model="form.customerName" type="text" required />
                     </div>
 
                     <div class="form-group">

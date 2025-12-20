@@ -7,11 +7,14 @@
     <aside class="sidebar">
       <div class="brand">ศูนย์บริการ</div>
       <nav class="nav">
-        <router-link to="/" class="nav-item" active-class="active" exact
+        <router-link to="/submit" class="nav-item" active-class="active" exact
           >ส่งแบบฟอร์ม</router-link
         >
         <router-link to="/form-view" class="nav-item" active-class="active"
           >ดูแบบฟอร์ม</router-link
+        >
+        <router-link to="/settings" class="nav-item" active-class="active"
+          >การตั้งค่า</router-link
         >
       </nav>
     </aside>

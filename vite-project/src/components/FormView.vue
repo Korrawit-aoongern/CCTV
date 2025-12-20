@@ -1,17 +1,39 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const items = ref([])
 const loading = ref(false)
 const error = ref(null)
 
 const editItem = reactive({ visible: false, data: null })
 
+function getUser() {
+    try {
+        return JSON.parse(localStorage.getItem('user') || 'null')
+    } catch {
+        return null
+    }
+}
+
+function serviceTypeLabel(key) {
+    if (!key) return ''
+    if (key === 'phoneRepair') return 'ซ่อมโทรศัพท์มือถือ'
+    if (key === 'cameraInstall') return 'ติดตั้งกล้องรักษาความปลอดภัย'
+    return key
+}
+
 async function fetchItems() {
     loading.value = true
     error.value = null
     try {
-        const res = await fetch('http://localhost:3000/api/requests')
+        const user = getUser()
+        if (!user) {
+            router.push('/')
+            return
+        }
+        const res = await fetch('http://localhost:3000/api/requests', { headers: { 'x-uid': String(user.id) } })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         items.value = await res.json()
     } catch (err) {
@@ -21,9 +43,48 @@ async function fetchItems() {
     }
 }
 
-
-
 onMounted(() => fetchItems())
+
+// dynamic SSE handling
+onMounted(() => {
+    let es = null
+    function handleMessage(e) {
+        try {
+            const d = JSON.parse(e.data)
+            console.debug('SSE received', d)
+            const user = getUser()
+            if (d && d.uid && user && d.uid === user.id && d.status === 'สำเร็จ') {
+                if (Notification.permission === 'granted') {
+                    new Notification('คำขอเสร็จสิ้น', { body: `คำขอ No.${d.id} เสร็จสิ้น` })
+                }
+            }
+        } catch (err) { console.debug('SSE parse error', err) }
+    }
+    function startSSE() {
+        if (es) return
+        try {
+            if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+                Notification.requestPermission()
+            }
+            es = new EventSource('http://localhost:3000/api/updates')
+            es.onmessage = handleMessage
+            es.onerror = (ev) => console.debug('SSE error', ev)
+            console.debug('SSE started')
+        } catch (e) { console.debug('SSE start failed', e) }
+    }
+    function stopSSE() {
+        if (!es) return
+        try { es.close(); console.debug('SSE stopped') } catch (e) {}
+        es = null
+    }
+
+    try { if (localStorage.getItem('sse_notify') === '1') startSSE() } catch (e) {}
+
+    const toggleHandler = (ev) => { if (ev && ev.detail) startSSE(); else stopSSE() }
+    window.addEventListener('sse-toggle', toggleHandler)
+
+    onUnmounted(() => { stopSSE(); window.removeEventListener('sse-toggle', toggleHandler) })
+})
 </script>
 
 <template>
@@ -36,9 +97,8 @@ onMounted(() => fetchItems())
         <table v-if="items.length" class="list-table">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>No.</th>
                     <th>ประเภท</th>
-                    <th>ลูกค้า</th>
                     <th>เบอร์ติดต่อ</th>
                     <th>อุปกรณ์</th>
                     <th>สถานะ</th>
@@ -46,10 +106,9 @@ onMounted(() => fetchItems())
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="it in items" :key="it.id">
-                    <td>{{ it.id }}</td>
-                    <td>{{ it.serviceType }}</td>
-                    <td>{{ it.customerName }}</td>
+                <tr v-for="(it, index) in items" :key="it.id">
+                    <td>{{ index + 1 }}</td>
+                    <td>{{ serviceTypeLabel(it.serviceType) }}</td>
                     <td>{{ it.contactPhone }}</td>
                     <td>{{ it.deviceModel }}</td>
                     <td>{{ it.status }}</td>
@@ -71,11 +130,6 @@ onMounted(() => fetchItems())
                         <option value="phoneRepair">ซ่อมโทรศัพท์มือถือ</option>
                         <option value="cameraInstall">ติดตั้งกล้องรักษาความปลอดภัย</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label>ชื่อ</label>
-                    <input v-model="editItem.data.customerName" />
                 </div>
 
                 <div class="form-group">
