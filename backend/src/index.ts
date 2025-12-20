@@ -70,8 +70,7 @@ async function initDb() {
       firstname VARCHAR(100) NOT NULL,
       lastname VARCHAR(100) NOT NULL,
       email VARCHAR(255) NOT NULL UNIQUE,
-      password VARCHAR(255) NOT NULL,
-      email_notifications TINYINT(1) DEFAULT 1
+      password VARCHAR(255) NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `)
 
@@ -86,8 +85,9 @@ async function initDb() {
   } catch (e) {
     // ignore if constraint exists or fails
   }
+  // Ensure legacy email_notifications column is removed if present
   try {
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications TINYINT(1) DEFAULT 1`)
+    await pool.query(`ALTER TABLE users DROP COLUMN IF EXISTS email_notifications`)
   } catch (e) {
     // ignore
   }
@@ -357,7 +357,7 @@ app.post('/api/register', async (c) => {
     const hashed = await bcrypt.hash(password, 10)
     const [res] = await pool.query('INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)', [firstname, lastname, email, hashed]) as any
     const id = res.insertId
-    return c.json({ id, firstname, lastname, email, email_notifications: 1 })
+    return c.json({ id, firstname, lastname, email })
   } catch (err: any) {
     console.error(err)
     return c.json({ error: err.message || 'DB error' }, 500)
@@ -375,28 +375,14 @@ app.post('/api/login', async (c) => {
     const user = rows[0]
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) return c.json({ error: 'Invalid credentials' }, 401)
-    return c.json({ id: user.id, firstname: user.firstname, lastname: user.lastname, email: user.email, email_notifications: user.email_notifications })
+    return c.json({ id: user.id, firstname: user.firstname, lastname: user.lastname, email: user.email })
   } catch (err: any) {
     console.error(err)
     return c.json({ error: err.message || 'DB error' }, 500)
   }
 })
 
-// Update user's email notification preference
-app.post('/api/users/notify', async (c) => {
-  try {
-    const uidHeader = c.req.header('x-uid')
-    if (!uidHeader) return c.json({ error: 'Unauthorized' }, 401)
-    const uid = Number(uidHeader)
-    const body = await c.req.json()
-    const enabled = body.enabled ? 1 : 0
-    await pool.query('UPDATE users SET email_notifications = ? WHERE id = ?', [enabled, uid])
-    return c.json({ id: uid, email_notifications: enabled })
-  } catch (err: any) {
-    console.error(err)
-    return c.json({ error: err.message || 'DB error' }, 500)
-  }
-})
+// Email preference endpoint removed — server no longer tracks email notifications
 
 // Initialize DB then start server
 initDb()

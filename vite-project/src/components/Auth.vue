@@ -40,7 +40,7 @@ async function submit() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Register failed')
-      saveUser({ id: data.id, firstname: data.firstname, lastname: data.lastname, email: data.email, email_notifications: data.email_notifications ?? 1 })
+      saveUser({ id: data.id, firstname: data.firstname, lastname: data.lastname, email: data.email })
       router.push('/submit')
     } else {
       if (!form.email || !form.password) {
@@ -54,7 +54,7 @@ async function submit() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Login failed')
-      saveUser({ id: data.id, firstname: data.firstname, lastname: data.lastname, email: data.email, email_notifications: data.email_notifications ?? 1 })
+      saveUser({ id: data.id, firstname: data.firstname, lastname: data.lastname, email: data.email })
       router.push('/submit')
     }
   } catch (e) {
